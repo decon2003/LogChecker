@@ -1,0 +1,7 @@
+requests
+sqlite3
+threading
+subprocess
+xml.etree.ElementTree
+# Dependencies for client module
+# Includes HTTP requests, threading, and subprocess management

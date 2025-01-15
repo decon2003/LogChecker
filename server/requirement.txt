@@ -1,0 +1,10 @@
+flask
+flask-socketio
+tensorflow
+pandas
+sqlite3
+threading
+xml.etree.ElementTree
+re
+# Dependencies for server module
+# Includes Flask for API, SocketIO for real-time communication, TensorFlow for model, and pandas for data processing
