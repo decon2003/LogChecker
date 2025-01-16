@@ -16,10 +16,23 @@ def run_agent(result_display):
     response = requests.get(f"{SERVER_URL}/required_logs")
     if response.status_code == 200:
         data = response.json()
+        append_result("[INFO] Starting agent...", result_display)
         threading.Thread(target=start_agent, args=(data, UUID, result_display)).start()
     else:
-        append_result("[ERROR] Không thể kết nối đến server.", result_display)
+        append_result("[ERROR] Cannot connect to the server.", result_display)
 
+def upload_logs_and_update_gui(logs, result_display):
+    try:
+        response = requests.post(f"{SERVER_URL}/upload_logs", json={"uuid": UUID, "logs": logs})
+        if response.status_code == 200:
+            predictions = response.json().get("predictions", [])
+            append_result(f"[INFO] Predictions: {predictions}", result_display)
+        else:
+            append_result(f"[ERROR] Failed to upload logs. Status: {response.status_code}", result_display)
+    except Exception as e:
+        append_result(f"[ERROR] Exception occurred while uploading logs: {e}", result_display)
+
+        
 def main():
     root = Tk()
     root.title("Agent")

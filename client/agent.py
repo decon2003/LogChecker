@@ -3,12 +3,13 @@ import requests
 import time
 import subprocess
 from xml.etree.ElementTree import fromstring
+from tkinter import END 
 from database.db_manager import insert_log
 
-def fetch_logs(required_logs, uuid):  
-    """
-    Fetch logs from the Windows Event Log and save them to the database.
-    """
+SERVER_URL = "http://127.0.0.1:5000" 
+
+def fetch_logs(required_logs, uuid):
+    logs = []  # Initialize a list to store logs
     command = (
         f"powershell.exe -Command \"Get-WinEvent -LogName Microsoft-Windows-Sysmon/Operational -MaxEvents {required_logs} | ForEach-Object {{ $_.ToXml() }}\""
     )
@@ -19,8 +20,8 @@ def fetch_logs(required_logs, uuid):
             print(f"[ERROR] {error_output}")
             return
 
-        logs = logs_output.strip().split("</Event>")
-        logs = [log + "</Event>" for log in logs if log.strip()]
+        logs_split = logs_output.strip().split("</Event>")
+        logs = [log + "</Event>" for log in logs_split if log.strip()]
 
         for log in logs:
             root = fromstring(log)
@@ -29,8 +30,13 @@ def fetch_logs(required_logs, uuid):
                 insert_log(uuid, log)
 
         print(f"[INFO] {len(logs)} logs fetched and saved.")
+        
+        # Upload logs to the server
+        upload_logs_to_server(logs, uuid)
+
     except Exception as e:
         print(f"[ERROR] Failed to fetch logs: {e}")
+
 
 def monitor_new_logs(last_record_id, uuid, is_running):
     """
@@ -62,6 +68,19 @@ def monitor_new_logs(last_record_id, uuid, is_running):
             print(f"[ERROR] Failed to monitor new logs: {e}")
             time.sleep(5)
 
+def upload_logs_to_server(logs, uuid):
+    """
+    Upload logs to the server for processing.
+    """
+    try:
+        response = requests.post(f"{SERVER_URL}/upload_logs", json={"uuid": uuid, "logs": logs})
+        if response.status_code == 200:
+            print("[INFO] Logs successfully uploaded to the server.")
+        else:
+            print(f"[ERROR] Failed to upload logs. Server responded with status: {response.status_code}")
+    except Exception as e:
+        print(f"[ERROR] Exception while uploading logs: {e}")
+
 def start_agent(data, uuid, result_display):
     """
     Start the agent to fetch and monitor logs.
@@ -69,19 +88,18 @@ def start_agent(data, uuid, result_display):
     required_logs = data["required_logs"]
     socket_url = data["socket_url"]
 
-    # Fetch initial logs
-    result_display.insert("Fetching initial logs...\n")
+    result_display.insert(END, "Fetching initial logs...\n") 
     fetch_logs(required_logs, uuid)
-    result_display.insert("Initial logs saved.\n")
+    result_display.insert(END, "Initial logs saved.\n")  
 
     # Start monitoring new logs
     is_running = threading.Event()
     is_running.set()
     threading.Thread(target=monitor_new_logs, args=(0, uuid, is_running), daemon=True).start()
 
-    # Handle graceful shutdown
+    # Stop monitoring gracefully
     def stop_agent():
         is_running.clear()
-        result_display.insert("Agent stopped.\n")
+        result_display.insert(END, "Agent stopped.\n")  
 
     return stop_agent

@@ -2,8 +2,8 @@ from flask import Flask, jsonify, request
 from flask_socketio import SocketIO
 import threading
 import pandas as pd
-from server.preprocess import preprocess_logs
-from server.model_loader import load_model
+from .preprocess import preprocess_logs
+from .model_loader import load_model
 from database.db_manager import fetch_logs_by_uuid
 
 # Initialize Flask and SocketIO
@@ -23,6 +23,26 @@ def get_required_logs():
         "required_logs": required_logs,
         "socket_url": "http://127.0.0.1:5000"
     })
+@app.route("/upload_logs", methods=["POST"])
+def upload_logs():
+    """
+    Receive logs from the client and process them.
+    """
+    data = request.json
+    logs = data.get("logs", [])
+    uuid = data.get("uuid")
+
+    print(f"[INFO] Received {len(logs)} logs from client UUID: {uuid}")
+
+    # Process logs (e.g., preprocess and predict)
+    predictions = []
+    for log in logs:
+        parsed_log = preprocess_logs(log)
+        predictions.append(model.predict([parsed_log]))
+
+    print(f"[INFO] Predictions: {predictions}")
+    return jsonify({"predictions": predictions}), 200
+
 
 @socketio.on("logs_ready")
 def handle_logs_ready(data):
